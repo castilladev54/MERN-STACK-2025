@@ -1,0 +1,222 @@
+
+°npm init para
+°npm install express jsonwebtoken mongoose cookie-parser dotenv axios bcryptjs
+°Crea el archivo server.js:
+
+/** Importar paquetes necesarios */
+import axios from "axios"; // Cliente HTTP para hacer peticiones a la API
+import toast from "react-hot-toast"; // Librería para mostrar notificaciones (éxito/error)
+import { create } from "zustand"; // Zustand es un manejador de estado global muy ligero
+
+/** 
+ * useAuthStore
+ * Este store maneja todo lo relacionado con la autenticación del usuario:
+ * - Registro (signup)
+ * - Inicio de sesión (login)
+ * - Cierre de sesión (logout)
+ * - Verificación de sesión activa (authCheck)
+ */
+export const useAuthStore = create((set) => ({
+
+	// Estado inicial
+	user: null,                 // Guarda los datos del usuario autenticado
+	isSigningUp: false,        // Indicador de si se está registrando un usuario
+	isCheckingAuth: true,      // Indicador de si se está verificando la sesión activa
+	isLoggingOut: false,       // Indicador de si se está cerrando la sesión
+	isLoggingIn: false,        // Indicador de si se está iniciando sesión
+
+	/** 
+	 * signup
+	 * Función asíncrona para registrar un nuevo usuario
+	 * @param {Object} credentials - datos del formulario de registro (ej. nombre, email, password)
+	 */
+	signup: async (credentials) => {
+		set({ isSigningUp: true }); // Activar loading
+		try {
+			// Enviar datos al backend para crear una cuenta
+			const response = await axios.post("/api/v1/auth/signup", credentials);
+
+			// Guardar el usuario en el estado global y desactivar loading
+			set({ user: response.data.user, isSigningUp: false });
+
+			// Mostrar mensaje de éxito
+			toast.success("Cuenta creada correctamente");
+		} catch (error) {
+			// En caso de error, mostrar mensaje y limpiar estado
+			toast.error(error.response.data.message || "Error al registrarse");
+			set({ isSigningUp: false, user: null });
+		}
+	},
+
+	/** 
+	 * login
+	 * Función para iniciar sesión con email y contraseña
+	 * @param {Object} credentials - datos de inicio de sesión (email y contraseña)
+	 */
+	login: async (credentials) => {
+		set({ isLoggingIn: true }); // Activar loading
+		try {
+			const response = await axios.post("/api/v1/auth/login", credentials);
+
+			// Guardar usuario autenticado en el estado global
+			set({ user: response.data.user, isLoggingIn: false });
+		} catch (error) {
+			// En caso de error, limpiar estado y mostrar mensaje
+			set({ isLoggingIn: false, user: null });
+			toast.error(error.response.data.message || "Error al iniciar sesión");
+		}
+	},
+
+	/** 
+	 * logout
+	 * Cierra la sesión del usuario autenticado
+	 */
+	logout: async () => {
+		set({ isLoggingOut: true }); // Activar loading
+		try {
+			// Llamada al backend para cerrar sesión
+			await axios.post("/api/v1/auth/logout");
+
+			// Limpiar usuario del estado global
+			set({ user: null, isLoggingOut: false });
+
+			toast.success("Sesión cerrada correctamente");
+		} catch (error) {
+			set({ isLoggingOut: false });
+			toast.error(error.response.data.message || "Error al cerrar sesión");
+		}
+	},
+
+	/** 
+	 * authCheck
+	 * Verifica si hay una sesión activa (por ejemplo, al recargar la página)
+	 */
+	authCheck: async () => {
+		set({ isCheckingAuth: true }); // Activar verificación
+		try {
+			// Llamada al backend para verificar si el usuario sigue autenticado
+			const response = await axios.get("/api/v1/auth/authCheck");
+
+			// Si hay usuario, lo guarda en el estado global
+			set({ user: response.data.user, isCheckingAuth: false });
+		} catch (error) {
+			// Si no hay sesión válida, limpia el estado
+			set({ isCheckingAuth: false, user: null });
+
+			// toast desactivado para no mostrar error cada vez que no hay sesión activa
+			// toast.error(error.response.data.message || "Error al verificar sesión");
+		}
+	},
+}));
+✅ Resumen de funcionalidades
+Función	¿Qué hace?
+signup()	Registra un nuevo usuario y lo guarda en estado.
+login()	Inicia sesión con email y contraseña.
+logout()	Cierra la sesión actual del usuario.
+authCheck()	Verifica si hay una sesión activa al cargar la app.
+
+¿Quieres que también guardemos el token JWT en localStorage y lo usemos en las peticiones protegidas? Puedo ayudarte con eso también.
+
+
+
+
+
+
+
+
+Tú dijiste:
+import { create } from 'zustand';
+
+export const useContentStore = create((set) => ({
+  contentType: "movie",
+  setContentType: (type) => set({ contentType: type})
+})); documentan tambien 
+
+
+ChatGPT Plus
+Claro, a continuación te documento detalladamente este pequeño pero útil store de Zustand para manejar el tipo de contenido (movie o tv, por ejemplo) en una aplicación, probablemente relacionada con películas o series como en el caso de TMDB.
+
+js
+Copiar
+Editar
+// Importar el método `create` de la librería Zustand para crear un store de estado global
+import { create } from 'zustand';
+
+/**
+ * useContentStore
+ * Store global que gestiona el tipo de contenido seleccionado por el usuario (películas, series, etc.)
+ * Ideal para apps donde se filtra contenido por categoría.
+ */
+export const useContentStore = create((set) => ({
+
+  // Estado inicial del tipo de contenido
+  contentType: "movie", // Valor por defecto es "movie", puede ser cambiado a "tv" u otro
+
+  /**
+   * setContentType
+   * Función para actualizar el tipo de contenido actual
+   * @param {string} type - nuevo tipo de contenido ("movie", "tv", etc.)
+   */
+  setContentType: (type) => set({ contentType: type })
+}));
+✅ ¿Qué hace este store?
+Propiedad / Método	Descripción
+contentType	Almacena si el usuario está viendo "movie" o "tv". Puede usarse para cambiar lo que se muestra en la interfaz.
+setContentType()	Permite actualizar el tipo de contenido, por ejemplo, cuando el usuario cambia de "Películas" a "Series".
+
+🧠 Ejemplo de uso en un componente React:
+jsx
+Copiar
+Editar
+import { useContentStore } from './store/useContentStore';
+
+function NavTabs() {
+  const { contentType, setContentType } = useContentStore();
+
+  return (
+    <div>
+      <button onClick={() => setContentType("movie")}>Películas</button>
+      <button onClick={() => setContentType("tv")}>Series</button>
+
+      <p>Contenido actual: {contentType}</p>
+    </div>
+  );
+
+
+ 🎬 Clon de Netflix con MERN StackEste proyecto es un clon simplificado de Netflix, construido con la pila MERN (MongoDB, Express.js, React.js, Node.js). Permite a los usuarios registrarse, iniciar sesión y explorar una colección de películas y series de televisión.✨ CaracterísticasAutenticación de Usuarios: Registro e inicio de sesión seguro con JWT.Gestión de Perfiles: Los usuarios pueden gestionar sus perfiles.Exploración de Contenido: Navega por una biblioteca de películas y series.Diseño Responsivo: Experiencia de usuario optimizada para diferentes dispositivos.🚀 Tecnologías UtilizadasBackend (Node.js, Express.js):Node.js: Entorno de ejecución de JavaScript.Express.js: Framework web para Node.js.MongoDB: Base de datos NoSQL para almacenar datos de usuarios y contenido.Mongoose: ODM (Object Data Modeling) para MongoDB.JWT (JSON Web Tokens): Para autenticación segura.Bcrypt.js: Para el hash de contraseñas.Dotenv: Para gestionar variables de entorno.Axios: Cliente HTTP para realizar peticiones.Cookie-parser: Para analizar cookies adjuntas a la petición del cliente.Frontend (React.js):React.js: Biblioteca de JavaScript para construir interfaces de usuario.React Router DOM: Para la navegación en la aplicación de una sola página.Tailwind CSS: Para un diseño rápido y responsivo.Axios: Para consumir la API del backend.📸 Captura de PantallaAquí tienes una vista previa de la aplicación en acción:!(paragithub.jpg)📦 Estructura del Proyectomern/
+├── backend/
+│   ├── config/
+│   ├── controllers/
+│   ├── models/
+│   ├── routes/
+│   ├── server.js
+│   └── Dockerfile
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── App.js
+│   │   ├── index.js
+│   │   └── ...
+│   └── Dockerfile
+├── .env.example
+├── docker-compose.yml
+├── package.json
+└── README.md
+⚙️ Configuración y Ejecución LocalSigue estos pasos para configurar y ejecutar el proyecto en tu máquina local.PrerrequisitosAsegúrate de tener instalado lo siguiente:Node.js (v18 o superior)npm (v8 o superior)MongoDB (local o una instancia en la nube como MongoDB Atlas)Docker y Docker Compose (opcional, pero recomendado para un entorno consistente)1. Clonar el Repositoriogit clone <URL_DE_TU_REPOSITORIO>
+cd mern
+2. Configuración de Variables de EntornoCrea un archivo .env en el directorio raíz de tu proyecto (mern/.env) y añade las siguientes variables. Puedes copiar el contenido de .env.example.# .env
+MONGO_URI=mongodb://localhost:27017/mernflix # O tu URI de MongoDB Atlas
+PORT=5000
+JWT_SECRET=tu_secreto_jwt_muy_seguro
+TMDB_API_KEY=tu_clave_api_tmdb # Si usas la API de TMDB
+Nota: Si usas Docker Compose, el MONGO_URI en tu .env dentro del contenedor será mongodb://mongodb:27017/mernflix (donde mongodb es el nombre del servicio en docker-compose.yml).3. Instalación de DependenciasInstala las dependencias tanto para el backend como para el frontend:npm install # Instala dependencias del backend
+npm install --prefix frontend # Instala dependencias del frontend
+4. Ejecución del Proyecto (Sin Docker)BackendEn el directorio raíz del proyecto (mern/), ejecuta:npm run dev # Para desarrollo con nodemon
+# O para producción
+npm run start
+El servidor backend se ejecutará en http://localhost:5000.FrontendEn el directorio raíz del proyecto (mern/), ejecuta:npm start --prefix frontend
+La aplicación frontend se ejecutará en http://localhost:3000.5. Ejecución del Proyecto con Docker Compose (Recomendado)Asegúrate de tener Docker y Docker Compose instalados.Crea el archivo .env en la raíz del proyecto como se mencionó anteriormente.Asegúrate de que tus Dockerfiles estén en backend/Dockerfile y frontend/Dockerfile respectivamente.Desde el directorio raíz de tu proyecto (mern/), ejecuta:docker-compose up --build
+Esto construirá las imágenes de Docker para tu backend y frontend, y levantará los servicios junto con una instancia de MongoDB.Una vez que los contenedores estén en funcionamiento:Frontend: Accede a la aplicación en http://localhost:3000Backend API: El backend estará disponible internamente en http://backend:5000 para el frontend y externamente en http://localhost:5000 si necesitas accederlo directamente.6. Detener los Contenedores de DockerPara detener y eliminar los contenedores, redes y volúmenes creados por docker-compose up:docker-compose down
+🤝 Contribuciones¡Las contribuciones son bienvenidas! Si encuentras un error o tienes una sugerencia de mejora, por favor, abre un "issue" o envía un "pull request".📄 LicenciaEste proyecto está bajo la Licencia ISC. 
